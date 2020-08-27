@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Mandelbrot canvas</title>
+    <style>
+        #canvas_holder {width:270px;float:left;}
+        #buttons {
+            /* margin-left: 270px; */
+            /* border:1px solid #00008d; */
+            height:166px;
+            padding-top: 90px;
+            width:75px;
+            float:left;
+        }
+        .button_row {height:25px;}
+        .button_row span,
+        .button_row span button{
+            width:25px;
+        }
+        .button_row span {
+            display: inline-block;
+            /*border:1px solid #00008d;*/
+        }
+        .button_row span button{
+            padding:0;
+            text-align: center;
+        }
+        #canvas_julia_holder {
+            margin-left: 352px;
+            /* border:1px solid #00008d; */
+            height:256px;
+        }
+    </style>
+    <script>
+        const in_circle = (x, y) => (x + 1) ** 2 + y ** 2 <= 0.0625;//1/16;
+        const in_cardioid = (x, y) => ((r, angle) => r <= 2 * 0.25 * (1 - Math.cos(angle)))(
+            ((x - 0.25) ** 2 + y ** 2) ** 0.5, Math.atan2(y, x - 0.25)
+        )
+        const X = 256, Y = 256, DX = -2 + 0.472, DY = -1.0;
+        //const min_x=(0-DX)/2*X,min_y=(0-DY)/2*Y;
+        var min_x = DX, min_y = DY;
+        var dx = 1.0 / X * 2, dy = 1.0 / Y * 2;
+        var painting_julia = false,_cx=0,_cy=0,julia_arr=[];
+        var settings={
+            'slope':true,'slope_val':218.0 / 316.0,
+            'end_attr':false,'end_ampl':10.0,
+            'attr':true,'attr_ampl':10.0,
+            'dots':false,
+        };
+
+        function paint(id, f, fs = []) {
+            //https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Pixel_manipulation_with_canvas
+            var canvas = document.getElementById(id);
+            var ctx = canvas.getContext('2d');
+            var myImageData = ctx.createImageData(X, Y);
+            console.time('painting');
+            var s = 0, s0 = 0;
+            if (!painting_julia) {
+                for (var y = 0, n = 0, ry = min_y; y < Y; ++y, ry += dy) {
+                    var fs_old = fs.map(f => f(min_x, ry));
+                    for (var x = 0, rx = min_x; x < X; ++x, rx += dx, n += 4) {
+                        var fs_ = fs.map(f => f(rx, ry));
+                        if (settings.slope && fs.length && (fs_[0] != fs_old[0])) {
+                            //if (fs_.some((elem, index) => elem !== fs_old[index]) && false) {
+                            myImageData.data[n + 2] = 255;
+                            myImageData.data[n + 3] = 255;
+                            fs_old = fs_.map(x => x);
+                            s0 += 1;
+                            continue;
+                        }
+                        fs_old = fs_.map(x => x);
+                        if (in_circle(rx, ry) || in_cardioid(rx, ry)) {
+                            // myImageData.data[n+0]=0;
+                            // myImageData.data[n+1]=0;
+                            // myImageData.data[n+2]=0;
+                            myImageData.data[n + 3] = 255;
+                        } else {
+                            // myImageData.data[n+0]=255;
+                            // myImageData.data[n+1]=255;
+                            // myImageData.data[n+2]=255;
+                            var f_ = f(rx, ry);
+                            myImageData.data[n + 3] = f_;
+                            s += f_;
+                        }
+                    }
+                }
+            } else {
+                /*var dx=3.0/256,dy=3.0/256,min_x=-1.5,min_y=-1.5;*/
+                var a=Array(256).fill(0).map(x => Array(256).fill(0));
+                for (var y = 0, n = 0, ry = -1.5; y < Y; ++y, ry += 0.01171875) 
+                    for (var x = 0, rx = -1.5; x < X; ++x, rx += 0.01171875, n += 4) {
+                        // myImageData.data[n+0]=255;
+                        // myImageData.data[n+1]=255;
+                        // myImageData.data[n+2]=255;
+                        myImageData.data[n + 2] = 255;
+                        var f_ = f(rx, ry);
+                        if (settings.attr && (f_==255)) {
+                            julia_arr.map(xy=>
+                                (xy[0]>=0)&&(xy[0]<256)&&(xy[1]>=0)&&(xy[1]<256)&&
+                                (a[xy[1]][xy[0]]+=1)
+                            )
+                        }
+                        myImageData.data[n + 3] = f_;
+                        s += f_;
+                    }
+                if (settings.attr) {
+                    attractors_end(a, myImageData, settings.attr_ampl);
+                }
+            }
+            console.timeEnd('painting');
+            console.log(s, s0);
+            if (painting_julia && settings.end_attr) {
+                console.time('attractors');
+                attractors(myImageData);
+                console.timeEnd('attractors');
+            }
+            painting_julia = false;
+            ctx.putImageData(myImageData, 0, 0);
+        }
+
+        function mandelbrot(x, y) {
+            var re = 0.0, im = 0.0, n = 0;
+            while ((re ** 2 + im ** 2 <= 100) && (n < 255)) {
+                var re_new = re * re - im * im + x,
+                    im_new = 2 * re * im + y;
+                re = re_new;
+                im = im_new;
+                n += 1;
+            }
+            return n;
+        }
+
+        function julia(cx, cy) {
+            painting_julia = true;
+            console.log('painting', cx, cy);
+            _cx=cx;
+            _cy=cy;
+            return function (x, y) {
+                julia_arr=[];
+                var re = x, im = y, n = 0;
+                while ((re ** 2 + im ** 2 <= 100) && (n < 255)) {
+                    var re_new = re * re - im * im + cx,
+                        im_new = 2 * re * im + cy;
+                    re = re_new;
+                    im = im_new;
+                    julia_arr.push(scale_up(re,im));
+                    n += 1;
+                }
+                return n;
+            }
+        }
+
+        function sqrt(x,y) {
+            var r = (x ** 2 + y ** 2) ** 0.25;
+            var phi = Math.atan2(y, x) / 2;
+            var sqrt_x = r * Math.cos(phi), sqrt_y = r * Math.sin(phi);
+            return [sqrt_x,sqrt_y];
+        }
+
+        function scale_down(x,y) {
+            return [x/256.0*3-1.5,y/256.0*3-1.5];
+        }
+
+        function scale_up(rx,ry) {
+            return [Math.round((rx+1.5)/3.0*256),Math.round((ry+1.5)/3.0*256)];
+        }
+
+        function attractors(canvas_array) {
+            var a = Array(256).fill(0).map(x => Array(256).fill(0));
+            for (var i = 0; i < 10000; ++i) {
+                //var sc_arr_old=scale_up(x,y);
+                //var sc_x_old=sc_arr_old[0],sc_y_old=sc_arr_old[1];
+                var x = Math.random() * 3.0 - 1.5, y = Math.random() * 3.0 - 1.5;
+                for (var j = 0; j < 255; ++j) {
+                    var sqrt_arr = sqrt(x - _cx, y - _cy);
+                    var new_x, new_y;
+                    if (Math.random() > 0.5) {
+                        new_x = sqrt_arr[0];
+                        new_y = sqrt_arr[1];
+                    } else {
+                        new_x = -sqrt_arr[0];
+                        new_y = -sqrt_arr[1];
+                    }
+                    if (
+                        ((Math.abs(x - new_x) < 3.0 / 256) &&
+                            (Math.abs(y - new_y) < 3.0 / 256)) ||
+                        ((Math.abs(x + new_x) < 3.0 / 256) &&
+                            (Math.abs(y + new_y) < 3.0 / 256))
+                    )
+                        break;
+                    x = new_x;
+                    y = new_y;
+                    var sc_arr = scale_up(x, y);
+                    var sc_x = sc_arr[0], sc_y = sc_arr[1];
+                    if ((sc_x >= 0) && (sc_x < 256) && (sc_y >= 0) && (sc_y < 256)) {
+                        a[sc_y][sc_x] += 1;
+                    }
+                }
+            }
+            attractors_end(a,canvas_array,settings.end_ampl);
+        }
+
+        function attractors_end(a,canvas_array,ampl=1) {
+            var max=0;
+            for (var y=0;y<256;++y)
+                for (var x=0;x<256;++x) {
+                    if (a[y][x]>max) {
+                        max=a[y][x];
+                    }
+                }
+            console.log(max);
+            max/=ampl;
+            for (var y=0,n=0;y<256;++y)
+                for (var x=0;x<256;++x,n+=4) {
+                    var c=Math.floor(a[y][x]*255.0/max);
+                    if (c>255)
+                        c=255;
+                    canvas_array.data[n]=c;
+                    canvas_array.data[n+2]=255-c;
+                }
+        }
+
+        function slope_values(x, y) {
+            var _1_4c_x = 1 - 4 * x, _1_4c_y = -4 * y;
+            var r = (_1_4c_x ** 2 + _1_4c_y ** 2) ** 0.25;
+            var phi = Math.atan2(_1_4c_y, _1_4c_x) / 2;
+            var sqrt_x = r * Math.cos(phi), sqrt_y = r * Math.sin(phi);
+            var _1_x = Math.abs(sqrt_x + 1), _2_x = Math.abs(sqrt_x - 1), _y = Math.abs(sqrt_y);
+            var s_1 = ((_1_x > 0) && (_y > 0)) ? (_1_x > _y) ? (_y / _1_x) : (_1_x / _y) : 1e6,
+                s_2 = ((_2_x > 0) && (_y > 0)) ? (_2_x > _y) ? (_y / _2_x) : (_2_x / _y) : 1e6;
+            return [s_1, s_2];
+        }
+
+        const slope = 218.0 / 316.0;
+        const min_slope = (x, y) =>
+            (x => ((x[0] < settings.slope_val ? 1 : 0) << 1) +
+                   (x[1] < settings.slope_val ? 1 : 0))(
+            slope_values(x, y)
+        );
+
+        function onLoad(f, ...params) {
+            return function () {
+                f(...params);
+                var canvas = document.getElementById("canvas");
+                canvas.addEventListener('click', mandelbrot_click);
+                Object.keys(settings).map(
+                    function (s) {
+                        var obj = document.getElementById(s);
+                        if ((typeof settings[s])==="boolean") {
+                            settings[s]=obj.checked;
+                        } else {
+                            var s_=parseFloat(obj.value);
+                            if (s_) {
+                                settings[s]=s_;
+                            }
+                        }
+                    }
+                );
+            };
+        }
+
+        function mandelbrot_click(e) {
+            console.log(e);
+            var target = e.target;
+            var x = e.clientX - target.offsetLeft,
+                y = e.clientY - target.offsetTop;
+            if (settings.dots) {
+                var canvas = target;
+                var ctx = canvas.getContext('2d');
+                ctx.beginPath();
+                ctx.arc(x, y, 3, 0, 2 * Math.PI, true);
+                ctx.fillStyle = "red";
+                ctx.fill();
+            }
+            //[min_x,min_y,dx,dy,1/dx,(min_x-DX)/dx,(min_y-DY)/dy]
+            paint("canvas_julia", julia(min_x + x * dx, min_y + y * dy));
+        }
+
+        function plus() {
+            min_x += dx * 64;
+            min_y += dy * 64;
+            dx /= 2;
+            dy /= 2;
+            paint("canvas", mandelbrot, [min_slope]);
+            log();
+        }
+
+        function minus() {
+            dx *= 2;
+            dy *= 2;
+            min_x -= dx * 64;
+            min_y -= dy * 64;
+            paint("canvas", mandelbrot, [min_slope]);
+            log();
+        }
+
+        function up() {
+            min_y -= dy * 64;
+            paint("canvas", mandelbrot, [min_slope]);
+            log();
+        }
+
+        function down() {
+            min_y += dy * 64;
+            paint("canvas", mandelbrot, [min_slope]);
+            log();
+        }
+
+        function left() {
+            min_x -= dx * 64;
+            paint("canvas", mandelbrot, [min_slope]);
+            log();
+        }
+
+        function right() {
+            min_x += dx * 64;
+            paint("canvas", mandelbrot, [min_slope]);
+            log();
+        }
+
+        function log() {
+            var log_p = document.getElementById("log");
+            log_p.innerText = [
+                'Bounding box: ('+
+                min_x, min_y, min_x+dx*256, (min_y+dy*256)+')',
+                'Step_x: '+dx, 'Step_y: '+dy,
+                'Parameters: '+
+                (1 / dx / 256), (min_x - DX) / dx / 64, (min_y - DY) / dx / 64].join(', ');
+        }
+
+        function change_checkbox(obj,s) {
+            //console.log(obj);
+            settings[s]=obj.checked;
+        }
+
+        function change_float(obj,s) {
+            //console.log(obj);
+            var s_=parseFloat(obj.value);
+            if (s_) {
+                settings[s]=s_;
+            }
+        }
+
+        if (window.addEventListener) {
+            window.addEventListener('load', onLoad(paint, "canvas", mandelbrot, [min_slope]), false);
+        } else { // IE
+            window.attachEvent('onload', onLoad(paint, "canvas", mandelbrot, [min_slope]));
+        }
+
+        //http://xahlee.info/js/js_scritping_svg_basics.html
+    </script>
+</head>
+<body>
+<div id="wrapper">
+    <div id="canvas_holder">
+        <canvas id="canvas" width="256" height="256"></canvas>
+    </div>
+    <div id="buttons">
+        <div class="button_row"><span><button
+                onclick="plus();">+</button></span><span><button
+                onclick="up();">↑</button></span><span></span></div>
+        <div class="button_row"><span><button
+                onclick="left();">←</button></span><span></span><span><button
+                onclick="right();">→</button></span></div>
+        <div class="button_row"><span><button
+                onclick="minus();">&minus;</button></span><span><button
+                onclick="down();">↓</button></span><span></span></div>
+    </div>
+    <div id="canvas_julia_holder">
+        <canvas id="canvas_julia" width="256" height="256"></canvas>
+    </div>
+</div>
+<div style="clear:both;"></div>
+<div>
+    <input type="checkbox" onchange="change_checkbox(this,'slope');" id="slope"/>
+    Show z=(1+-sqrt(1-4c))/2 with abs(Im(z)/Re(z)) or abs(Re(z)/Im(z))
+    =<input type="text" onchange="change_float(this,'slope_val');" id="slope_val"/>&lt;1
+</div>
+<div>
+    <input type="checkbox" onchange="change_checkbox(this,'end_attr');" id="end_attr"/>
+    Show attractors of z->+-sqrt(z-c) with amplification factor of
+    <input type="text" onchange="change_float(this,'end_ampl');" id="end_ampl"/>
+</div>
+<div>
+    <input type="checkbox" onchange="change_checkbox(this,'attr');" id="attr"/>
+    Show attractors of z->z^2+c with amplification factor of
+    <input type="text" onchange="change_float(this,'attr_ampl');" id="attr_ampl"/>
+</div>
+<div>
+    <input type="checkbox" onchange="change_checkbox(this,'dots');" id="dots"/>
+    Highlight Mandelbrot points for which Julia was generated red
+</div>
+<p id="log"></p>
+<!-- p>-0.18620312500000002, -0.654296875, 0.000030517578125, 0.000030517578125, 32768, 43968, 11328</p -->
+</body>
+</html>
