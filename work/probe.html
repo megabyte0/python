@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>&gt;&gt;&gt;</title>
+    <script>
+        function parse(text) {
+            var x=text.split('\n').map(x=>x.trim()).filter(x=>x.length);
+            var regexp = /^(?:\d+\.|•)\s*(.*)$/
+            x=x.map(function (line){
+                var match = regexp.exec(line);
+                //console.log(match);
+                if (match && match[1]) {
+                    return match[1]
+                }
+                return line;
+            })
+            console.log(x);
+            window.lines=x;
+            var form = document.getElementById("form"),
+                input = document.getElementById("input"),
+                body =  document.getElementsByTagName("body")[0];
+            form.setAttribute('style','width:'+
+                (body.clientWidth-input.clientWidth-30)
+                +'px;'+
+                'display: inline-block;vertical-align: top;border: 1px solid #00008d;');
+            form.innerHTML="";
+            x.forEach(function (line,index){
+                var div=document.createElement('div');
+                div.setAttribute('id',index.toString())
+                form.appendChild(div);
+                var checkbox = document.createElement('input');
+                checkbox.setAttribute('type','checkbox');
+                checkbox.setAttribute('name','c'+index);
+                checkbox.setAttribute('id','c'+index);
+                checkbox.addEventListener('mousedown',click);
+                div.appendChild(checkbox);
+                var label = document.createElement('label');
+                label.setAttribute('for','c'+index);
+                label.appendChild(document.createTextNode(line));
+                div.appendChild(label);
+                var add_text = document.createElement('input');
+                add_text.setAttribute('type','text');
+                add_text.setAttribute('id','t'+index);
+                add_text.setAttribute('style','display:none;');
+                div.appendChild(add_text);
+            })
+            var div=document.createElement('div');
+            div.setAttribute('id','on');
+            var button = document.createElement('button');
+            button.setAttribute('type','button');//https://www.w3schools.com/tags/tag_button.asp
+            button.addEventListener('mousedown',on);
+            button.appendChild(document.createTextNode('>>>'))
+            div.appendChild(button);
+            form.appendChild(div);
+            return true;
+        }
+        function click(event) {
+            var id=event.target.id,checked=event.target.checked,
+                text_id='t'+id.substring(1),text_elem=document.getElementById(text_id);
+            //console.log(checked);
+            //if (!checked) {
+                text_elem.setAttribute('style', ['width:200px;','display:none;'][checked?1:0]);
+            //}
+        }
+        function on(event) {
+            var form=event.target.parentNode.parentNode,
+                res={'true':[],'false':[]};
+            form.childNodes.forEach(function (div) {
+                if (div.id==='on') {
+                    return;
+                }
+                var id=div.id,checked=document.getElementById('c'+id).checked,
+                add_text=document.getElementById('t'+id).value;
+                res[checked.toString()].push(lines[parseInt(id)]+
+                    (add_text&&add_text.length&&(' -- '+add_text)||'')
+                );
+            });
+            console.log(res);
+            const lang_compacted={'russian':[['а', 'я'], ['ё', 'ё'], ['А', 'Я'], ['Ё', 'Ё']],
+                'latin':[['a','z'],['A','Z']]};
+            var lang_map={};
+            Object.keys(lang_compacted).forEach(function (key) {
+                var lang_explicit=lang_compacted[key];
+                lang_explicit.forEach(function (start_end) {
+                    for (var i=start_end[0].charCodeAt(0);i<=start_end[1].charCodeAt(0);++i) {
+                        lang_map[String.fromCharCode(i)]=key;
+                    }
+                });
+            });
+            var lang_count={'russian':0,'latin':0,undefined:0};
+            Object.keys(res).forEach(function (key) {
+                res[key].forEach(function (line) {
+                    for (var i=0;i<line.length;++i){
+                        lang_count[lang_map[line.charAt(i)]]+=1;
+                    }
+                });
+            });
+            var lang = lang_count['russian']>=lang_count['latin']?'russian':'latin';
+            var output = document.getElementById('output');
+            output.value= {
+                'russian':()=>
+                    'Здравствуйте.\nУмею, из того, что нужно:\n' +
+                    res['true'].join('\n') + '\n\n' +
+                    'Не умею из того, что нужно:\n' +
+                    res['false'].join('\n') + '\nСпасибо за рассмотрение резюме.)',
+                'latin':()=>
+                    'Hi!\nI\'m good at (from the requirements list):\n' +
+                    res['true'].join('\n') + '\n\n' +
+                    'I\'m not very good at:\n' +
+                    res['false'].join('\n') + '\nThank you for considering this.)',
+            }[lang]();
+            document.getElementById('length').innerHTML=(output.value.length).toString();
+            //именно на php опыт коммерческой разработки не больше 1 года, но программирую на C++ с 1999, а т.к. php -- C-основный язык, считаю, проблем не будет)
+        }
+    </script>
+</head>
+<body>
+    <div>
+        <textarea cols="80" rows="20" id="input" onkeyup="parse(this.value);"></textarea>
+        <form style="display: inline-block;vertical-align: top;border: 1px solid #00008d;" id="form">
+            <input type="checkbox" />
+        </form>
+    </div>
+    <div>
+        <textarea cols="80" rows="20" id="output"></textarea>
+    </div>
+    <p id="length"></p>
+</body>
+</html>
