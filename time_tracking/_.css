@@ -1,0 +1,41 @@
+ul#main,
+ul#main li ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+}
+
+ul#main li ul li {
+    display: inline-block;
+    margin-left: 3px;
+}
+
+ul#main li {
+    margin-top: 2px;
+}
+
+ul#main li ul li:nth-child(1),
+ul#main li ul li:nth-child(2) {
+    width: 73px;
+}
+
+ul#main li ul li:nth-child(3) {
+    width: 356px;
+}
+
+ul#main li ul li:nth-child(4) {
+    width: 50px;
+}
+
+ul#main li ul li input[type=text] {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+ul#main li ul li:nth-child(5) {
+    margin-left: 8px;
+}
+
+ul#main li ul.exported {
+    color: #aaaaaa;
+}
