@@ -14,6 +14,7 @@ connection_init_dict = {
     }
 fields = r'''id
 label
+jira_project
 task_id
 start_at
 end_at
@@ -28,8 +29,12 @@ cursor = sql_connection.cursor(buffered=True)
 cursor.execute(sql)
 data = [{k:v for k,v in zip(fields,i)} for i in cursor]
 
-har_path = '.'
-har_file = 'har/softrize.atlassian.net_Archive [22-04-11 20-21-13].har'
+har_path = './har'
+har_file = max((
+    os.path.join(har_path,har_file)
+    for har_file in os.listdir(har_path)
+    if har_file.endswith('.har')
+    ), key = lambda fn:os.stat(fn).st_ctime)
 with open(har_file,'rt') as fp:
     har = json.load(fp)
 
@@ -53,7 +58,7 @@ request_params = {
         },
     'method': elem['request']['method'],
     }
-url = re.sub(r'/TIPS\-(\d+)/', lambda m:'/TIPS-%d/', elem['request']['url'])
+url = re.sub(r'/(TIPS|TDS)\-(\d+)/', lambda m:'/%s-%d/', elem['request']['url'])
 update_sql = 'update time_tracking set exported = 1 where id = %s'
 context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
 context.load_verify_locations(certifi.where())
@@ -85,7 +90,7 @@ for item in data:
         'started': start_time_formatted
         }
     req = urllib.request.Request(
-        url%(item['task_id']),
+        url%(item['jira_project'],item['task_id']),
              data=json.dumps(req_data).encode(),
              **request_params
              )
@@ -98,3 +103,4 @@ for item in data:
 
 cursor.close()
 sql_connection.close()
+print(flush=True)

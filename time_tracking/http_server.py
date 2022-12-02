@@ -13,6 +13,7 @@ class HTTPRequestHandler(my_http_server.MyHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         self.fields = r'''id
 label
+jira_project
 task_id
 start_at
 end_at

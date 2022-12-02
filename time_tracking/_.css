@@ -11,7 +11,7 @@ ul#main li ul li {
 }
 
 ul#main li {
-    margin-top: 2px;
+    margin-top: 0.09375em;
 }
 
 ul#main li ul li:nth-child(1),
@@ -24,15 +24,26 @@ ul#main li ul li:nth-child(3) {
 }
 
 ul#main li ul li:nth-child(4) {
-    width: 50px;
-}
-
-ul#main li ul li input[type=text] {
-    width: 100%;
-    box-sizing: border-box;
+    width: 58px;
+    margin-left: 3px;
 }
 
 ul#main li ul li:nth-child(5) {
+    width: 50px;
+    margin-left: 4px;
+}
+
+ul#main li ul li input[type=text],
+ul#main li ul li select {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid #8f8f9d;
+    border-radius: 2px;
+    height: 22px;
+    background-color: transparent;
+}
+
+ul#main li ul li:nth-child(6) {
     margin-left: 8px;
 }
 

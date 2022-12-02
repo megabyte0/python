@@ -12,6 +12,7 @@ function renderMain(data) {
                 "end_at": null,
                 "label": null,
                 "task_id": null,
+                "jira_project": "TDS",
             }) + "</li>"
         )
     );
@@ -21,11 +22,25 @@ function renderMain(data) {
 
 const render_item_to_li = x => "<li data-id=\"" + x["id"] + "\">" + renderItem(x) + "</li>";
 
+function renderSelect(jira_project) {
+    const projects = ["TIPS", "TDS", "BW"];
+    var res = [
+        "<select data-type='jira_project'>",
+        ...(([""].concat(projects)).map(project =>
+            "<option value='" + project + "'" +
+            (project === jira_project ? " selected" : "") +
+            ">" + (project === "" ? "---": project) + "</option>")),
+        "</select>",
+    ];
+    return res.join("");
+}
+
 function renderItem(item) {
     var res = [
         item["start_at"] !== null ? renderTime(item["start_at"]) : "",
         item["start_at"] === item["end_at"] ? "" : renderTime(item["end_at"]),
         item["label"] === null ? "<input type='text' data-type='label' />" : item["label"],
+        renderSelect(item["jira_project"]),
         "<input type='text' value='" +
         (item["task_id"] === null ? "" : item["task_id"]) +
         "' data-type='task_id' />",
@@ -57,7 +72,12 @@ function event_dispatcher(event) {
     var target = event.target;
     var type = event.type;
     var data_type = ("type" in target.dataset) && target.dataset.type;
-    const type_by_action = {"label": "change", "task_id": "change", "action": "click"};
+    const type_by_action = {
+        "label": "change",
+        "jira_project": "change",
+        "task_id": "change",
+        "action": "click"
+    };
     if (!(data_type && type_by_action[data_type] === type)) {
         return;
     }
@@ -76,10 +96,11 @@ function event_dispatcher(event) {
         const null_if_empty = x => x === "" ? null : x;
         item = {
             "label": null_if_empty(children[2].children[0].value),
-            "task_id": null_if_empty(children[3].children[0].value),
+            "jira_project": null_if_empty(children[3].children[0].value),
+            "task_id": null_if_empty(children[4].children[0].value),
         }
     }
-    if (["label", "task_id"].some(field => field === data_type)) {
+    if (["label", "task_id", "jira_project"].some(field => field === data_type)) {
         var item_copy = object_copy(item);
         item_copy[data_type] = value === "" ? null : value;
         update_log(item_copy);
