@@ -1,0 +1,52 @@
+ul#main,
+ul#main li ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+}
+
+ul#main li ul li {
+    display: inline-block;
+    margin-left: 3px;
+}
+
+ul#main li {
+    margin-top: 0.09375em;
+}
+
+ul#main li ul li:nth-child(1),
+ul#main li ul li:nth-child(2) {
+    width: 73px;
+}
+
+ul#main li ul li:nth-child(3) {
+    width: 356px;
+}
+
+ul#main li ul li:nth-child(4) {
+    width: 58px;
+    margin-left: 3px;
+}
+
+ul#main li ul li:nth-child(5) {
+    width: 50px;
+    margin-left: 4px;
+}
+
+ul#main li ul li input[type=text],
+ul#main li ul li select {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid #8f8f9d;
+    border-radius: 2px;
+    height: 22px;
+    background-color: transparent;
+}
+
+ul#main li ul li:nth-child(6) {
+    margin-left: 8px;
+}
+
+ul#main li ul.exported {
+    color: #aaaaaa;
+}
