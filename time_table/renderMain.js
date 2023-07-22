@@ -12,6 +12,7 @@ function renderMain(data) {
             })
     ));
     const userToLetter = data["slack_messages"]["data"]["user_to_letter"];
+    const pathToLetter = data["idle_editor_log"]["data"]["path_to_letter"];
     // console.log(letterPriority);
     const mainDiv = document.getElementById("main");
     mainDiv.innerHTML = Object.entries(days).map(function (item) {
@@ -22,14 +23,19 @@ function renderMain(data) {
         return renderDay(item, letterPriority);
     }).join("");
     const selectedChatsRenderer =
-        new SelectedChatsRenderer(minutes, document.getElementById("chat"), userToLetter);
+        new SelectedChatsRenderer(
+            minutes,
+            document.getElementById("chat"),
+            userToLetter,
+            pathToLetter
+        );
     const selector = new Selector({
         "main": function (selections) {
             selectedChatsRenderer.render(selections);
         },
         "chat": function (selections) {
             console.log(selections); // object, starts with 1
-            renderTimes(selections[1]["start"], selections[1]["end"]);
+            renderTimes([selections[1]["start"], selections[1]["end"]]);
         }
     });
     document.addEventListener("selectionchange", function (event) {
@@ -76,25 +82,6 @@ function toMinutes(data) {
             data["time_log"]["data"],
             function (item) {
                 const v = item[1];
-                const datetimeToUtcSeconds = function (s) {
-                    const _time =
-                        s.substring("datetime.datetime(".length, s.length - 1)
-                            .split(", ").map(function (i) {
-                                return parseInt(i);
-                        });
-                    const year = _time[0],
-                        month = _time[1],
-                        date = _time[2],
-                        hour = _time[3],
-                        minute = _time[4],
-                        second = _time[5] || 0,
-                        microseconds = _time[6] || 0;
-                    const d = new Date();
-                    d.setUTCFullYear(year, month - 1, date);
-                    d.setUTCHours(hour, minute, second, 0);
-                    return Math.floor(d.getTime() / 1000 + 0.5).toString() + "." +
-                        (microseconds.toString().padStart(6, "0"));
-                }
                 const timeStart = datetimeToUtcSeconds(v["start_at"]),
                     timeEnd = datetimeToUtcSeconds(v["end_at"]);
                 const getLetter = function (v, timeStart, timeEnd) {
@@ -104,7 +91,7 @@ function toMinutes(data) {
                         isChat = (
                             ((taskId === 72) && (jiraProject === "TIPS"))
                             || ((taskId === 1489) && (jiraProject === "TDS"))
-                            || (label && ["chat", "call"].some(function (start) {
+                            || (label && ["chat", "call", "logging"].some(function (start) {
                                 return label.substring(0, start.length + 1) === start + " ";
                             }))
                         );
@@ -297,4 +284,24 @@ function minByPriority(letters, letterPriority) {
     return Object.keys(letters).reduce(function (acc, letter) {
         return letterPriority[acc] < letterPriority[letter] ? acc : letter;
     })
+}
+
+function datetimeToUtcSeconds(s) {
+    const _time =
+        s.substring("datetime.datetime(".length, s.length - 1)
+            .split(", ").map(function (i) {
+            return parseInt(i);
+        });
+    const year = _time[0],
+        month = _time[1],
+        date = _time[2],
+        hour = _time[3],
+        minute = _time[4],
+        second = _time[5] || 0,
+        microseconds = _time[6] || 0;
+    const d = new Date();
+    d.setUTCFullYear(year, month - 1, date);
+    d.setUTCHours(hour, minute, second, 0);
+    return Math.floor(d.getTime() / 1000 + 0.5).toString() + "." +
+        (microseconds.toString().padStart(6, "0"));
 }

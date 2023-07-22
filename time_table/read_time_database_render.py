@@ -71,7 +71,7 @@ is_chat = lambda item:(
 is_not_logged = lambda item:item['task_id'] == None
 dt_dt_to_utc_minute = lambda x:calendar.timegm(x.timetuple())//60
 
-letter_priority = '|TtNnWwPpAaFfCcUu@' + (
+letter_priority = '|TtNnWwPpAaFfCcUus@' + (
     ''.join(v for v in slack_letters_config.values() if v)
     ) + '/*-!.'
 letter_sort_key = lambda l:(

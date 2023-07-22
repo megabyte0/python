@@ -151,7 +151,7 @@ class Selector {
     convertToUtcMinute(node, offset) {
         let variable;
         switch (true) {
-            case !!(variable = node.dataset && node.dataset.time):
+            case !!(variable = node.dataset && node.dataset.times):
                 return variable;
             case !!(variable = node.parentNode.dataset.hour):
                 return parseInt(variable) * 60 + offset;

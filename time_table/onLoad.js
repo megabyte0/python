@@ -5,7 +5,8 @@ const baseUrl = (
 
 const onLoad = function () {
     // https://stackoverflow.com/a/9456144/
-    const secondsSinceEpoch = Math.floor((new Date()).getTime() / 1000 - 4 * 7 * 24 * 60 * 60);
+    const secondsSinceEpoch = //Math.floor((new Date()).getTime() / 1000 - 4 * 7 * 24 * 60 * 60);
+        Math.floor((new Date(2023,5,19, 0)).getTime() / 1000);
     const dataUrl = (
         baseUrl + "/api/data/"
     );

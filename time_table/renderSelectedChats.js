@@ -1,8 +1,9 @@
 class SelectedChatsRenderer {
-    constructor(minutes, elem, userToLetter) {
+    constructor(minutes, elem, userToLetter, pathToLetter) {
         this.minutes = minutes;
         this.elem = elem;
         this.userToLetter = userToLetter;
+        this.pathToLetter = pathToLetter;
         // this.elem.innerHTML = "test";
     }
 
@@ -13,13 +14,99 @@ class SelectedChatsRenderer {
             Object.entries(selectedMinutes).filter(function (item) {
                 return item[1].hasOwnProperty("slack_messages");
             })
-        ))
-        const entries = this.extractChats(selectedMinutesWithChats);
-        console.log("render", entries);
+        ));
+        console.log("render", selectedMinutes);
+        const chatEntries = this.extract(
+            selectedMinutesWithChats,
+            this.getReduceExtractChats(this.userToLetter)
+        );
+        const paths = Object.keys(this.pathToLetter);
+        const ideLogs = this.extract(
+            selectedMinutes,
+            this.extractIdeLogs()
+        );
+        const timeLogs = this.extract(
+            selectedMinutes,
+            function (acc, minuteValue) {
+                if (!minuteValue.hasOwnProperty("time_log")) {
+                    return acc;
+                }
+                const timeLog = minuteValue["time_log"];
+                Object.values(timeLog).forEach(function (value) {
+                    const id = value["id"];
+                    console.log("extract time log", value);
+                    acc[id] = value;
+                });
+                return acc;
+            }
+        );
+        const chatEntriesWithIdeLogs = Object.fromEntries(new Map(
+            Object.entries(chatEntries).map(function (item) {
+                const _time = item[0], message = item[1];
+                return [_time, {
+                    "type": "chat",
+                    "value": message,
+                }];
+            }).concat(
+                Object.entries(ideLogs).map(function (item) {
+                    const fileNameWithFullPath = item[0], times = Object.keys(item[1]);
+                    return [times.join(","), {
+                        "type": "ide_log",
+                        "value": fileNameWithFullPath,
+                    }];
+                })
+            ).concat(
+                Object.values(timeLogs).map(function (value) {
+                    return [
+                        [value["start_at"], value["end_at"]]
+                            .map(datetimeToUtcSeconds).join(","), {
+                            "type": "time_log",
+                            "value": value,
+                        }]
+                })
+            )
+        ));
+        console.log("render", chatEntriesWithIdeLogs); // entries);
         if (!elem) {
             elem = this.elem;
         }
         console.log("render elem", elem);
+        const sortedEntries = Object.entries(chatEntriesWithIdeLogs).sort(_sort);
+        if (sortedEntries.length) {
+            renderTimes(sortedEntries.map(function (item) {
+                const times = item[0];
+                return times;
+            }));
+        }
+        const renderedHtml = sortedEntries.map(function (item) {
+            const times = item[0], valueCombined = item[1],
+                _type = valueCombined["type"], value = valueCombined["value"];
+            switch (_type) {
+                case "ide_log":
+                    return this.renderIdleLogItem(this.cutOffFilePath(paths)(value), times);
+                case "chat":
+                    const _date = new Date(parseFloat(times) * 1000);
+                    return this.renderChatItem(times, _date, value);
+                case "time_log":
+                    return this.renderTimeLogItem(times, value);
+            }
+        }, this).join("");
+        // console.log("render html", renderedHtml);
+        elem.innerHTML = renderedHtml;
+        // console.log(elem.innerHtml);
+    }
+
+    renderIdleLogItem(fileName, times) {
+        return [
+            "<div data-times=\"",
+            times,
+            "\">",
+            fileName,
+            "</div>",
+        ].join("");
+    }
+
+    renderChatItem(_time, _date, messageRendered) {
         // https://stackoverflow.com/a/30970751
         const escape = function(s) {
             const lookup = {
@@ -33,30 +120,35 @@ class SelectedChatsRenderer {
                 return lookup[c];
             });
         }
-        const sortedEntries = Object.entries(entries).sort(_sort);
-        if (sortedEntries.length) {
-            renderTimes(sortedEntries[0][0], sortedEntries[sortedEntries.length - 1][0]);
-        }
-        const renderedHtml = sortedEntries.map(function (item) {
-            const _time = item[0], _date = new Date(parseFloat(_time) * 1000),
-            messageRendered = item[1];
-            return [
-                "<div data-time=\"",
-                _time,
-                "\">",
-                _date.getHours().toString().padStart(2, "0"),
-                ":",
-                _date.getMinutes().toString().padStart(2, "0"),
-                ":",
-                _date.getSeconds().toString().padStart(2, "0"),
-                " ",
-                escape(messageRendered),
-                "</div>",
-            ].join("");
-        }).join("");
-        // console.log("render html", renderedHtml);
-        elem.innerHTML = renderedHtml;
-        // console.log(elem.innerHtml);
+        return [
+            "<div data-times=\"",
+            _time,
+            "\">",
+            _date.getHours().toString().padStart(2, "0"),
+            ":",
+            _date.getMinutes().toString().padStart(2, "0"),
+            ":",
+            _date.getSeconds().toString().padStart(2, "0"),
+            " ",
+            escape(messageRendered),
+            "</div>",
+        ].join("");
+    }
+
+    renderTimeLogItem(times, value) {
+        const taskId = value["task_id"], jiraProject = value["jira_project"];
+        const composedTaskId = taskId && jiraProject && (jiraProject + "-" + taskId) || null;
+        return [
+            "<div data-times=\"",
+            times,
+            "\">",
+            value["id"].toString(),
+            " ",
+            composedTaskId,
+            " ",
+            value["label"],
+            "</div>",
+        ].join("");
     }
 
     getSelectedMinutes(selections) {
@@ -74,9 +166,13 @@ class SelectedChatsRenderer {
         }, Object.create(null));
     }
 
-    extractChats(minutes) {
-        const userToLetter = this.userToLetter;
-        return Object.values(minutes).reduce(function (acc, value) {
+    extract(minutes, reduceExtractFunction) {
+        return Object.values(minutes).reduce(reduceExtractFunction, {});
+    }
+
+    getReduceExtractChats(userToLetter) {
+        // console.log("getReduceExtractChats", this);
+        return function (acc, value) {
             const slackMessages = value["slack_messages"];
             Object.values(slackMessages).forEach(function (item) {
                 const _time = item[0], v = item[1];
@@ -94,12 +190,49 @@ class SelectedChatsRenderer {
                 }
             })
             return acc;
-        }, Object.create(null));
+        };
+    }
 
+    extractIdeLogs() {
+        return function(acc, value) {
+            if (!value.hasOwnProperty("idle_editor_log")) {
+                return acc;
+            }
+            const ideLogs = value["idle_editor_log"];
+            Object.entries(ideLogs).forEach(function (item) {
+                const _time = item[0], log = item[1], files = log["files"]; // letter, files
+                if (files === undefined) {
+                    return;
+                }
+                files.forEach(function (fileNameWithFullPath) {
+                    if (!acc.hasOwnProperty(fileNameWithFullPath)) {
+                        acc[fileNameWithFullPath] = {};
+                    }
+                    acc[fileNameWithFullPath][_time] = null;
+                });
+            });
+            return acc;
+        }
+    }
+
+    cutOffFilePath(paths) {
+        return function (fileName) {
+            const pathsStartsWith = paths.filter(function (path) {
+                return fileName.substring(0, path.length) === path;
+            });
+            if (pathsStartsWith.length) {
+                return fileName.substring(
+                    pathsStartsWith[0].length,
+                    fileName.length
+                );
+            } else {
+                return fileName;
+            }
+        };
     }
 }
 
-function renderTimes(timeStart, timeEnd) {
+function renderTimes(timesArray) {
     const elem = document.getElementById("times");
     const mySqlFormat = function(_time) {
         const timeStrSplit = _time.toString().split("."),
@@ -121,10 +254,22 @@ function renderTimes(timeStart, timeEnd) {
         ].concat(timeStrSplit.length > 1 ? [".", fractionSeconds] : []).join("");
     };
     const html = [
-        ["time-start", timeStart],
-        ["time-end", timeEnd],
+        ["time-start", timesArray, function (acc, item) {
+            return acc < item ? acc : item;
+        }],
+        ["time-end", timesArray, function (acc, item) {
+            return acc > item ? acc : item;
+        }],
     ].map(function (item) {
-        const id = item[0], _time = item[1];
+        const id = item[0], timesArray = item[1],
+            reduceFunction = item[2];
+        const timeSet = {};
+        timesArray.forEach(function (times) {
+            times.split(",").forEach(function (_time) {
+                timeSet[_time] = null;
+            });
+        });
+        const _time = Object.keys(timeSet).reduce(reduceFunction);
         return [
             "<span data-time=\"",
             _time,
