@@ -203,6 +203,7 @@ class Processor:
                         k,
                         [v]
                     )
+                    self.sql_connector.get_columns()
                 # assert (
                 #         k not in self.fields_sets
                 #         or v in self.fields_sets[k]
