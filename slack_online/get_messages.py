@@ -45,7 +45,7 @@ headers = {i['name']:i['value']
            #if i['name'] not in ['Host','Connection']
            if i['name'] in ['User-Agent','Cookie']
            }
-#print(headers)
+#print(token, headers)
 #assert False
 headers.update({'Authorization': 'Bearer %s'%token})
 user = 'U02K32EM1RP'
@@ -101,7 +101,11 @@ channels = [
     'D02JMFAARMK', #U01V1UG00SX Timur Lavrentsov
     'D02JHNUEE22', #U02H0LNPLCT Vladimir Lozinskii
     'D02KE5565RN', #U02GA54DP7W Andrey Dotsenko
-    'D04PPTFGS11', #Oleksii Borzak
+    'D04PPTFGS11', #U04NL3KNC0P Oleksii Borzak
+    'C064U0Y4DKJ', #cf
+    'C077C95AP2S', #jv
+    'D07GSN00CQ6', #U07G5QA7WL8 Nicolai Gheorghiev
+    'D02JMFACMC5', #U58JHAD8D Eugene Lyulka
     ]
 
 def get_history(api_endpoint, **params):
